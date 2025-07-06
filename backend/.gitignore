@@ -44,7 +44,7 @@ Thumbs.db
 .vscode/
 .idea/
 *.suo
-*.ntvs*
+.ntvs
 *.njsproj
 *.sln
 

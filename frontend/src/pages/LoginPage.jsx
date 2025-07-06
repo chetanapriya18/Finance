@@ -153,7 +153,7 @@ const LoginPage = () => {
         </Card>
 
         {/* Demo Credentials */}
-        <Card className="mt-4 bg-blue-50 dark:bg-blue-950 border-blue-200 dark:border-blue-800">
+        {/* <Card className="mt-4 bg-blue-50 dark:bg-blue-950 border-blue-200 dark:border-blue-800">
           <CardContent className="pt-4">
             <p className="text-sm text-blue-800 dark:text-blue-200 text-center">
               <strong>Demo Account:</strong><br />
@@ -161,7 +161,7 @@ const LoginPage = () => {
               Password: demo123
             </p>
           </CardContent>
-        </Card>
+        </Card> */}
       </div>
     </div>
   );
