@@ -441,20 +441,25 @@ const parseTransactionHistory = (text) => {
 // @access  Private
 router.post('/create-transaction', async (req, res) => {
   try {
-    // Validate required fields first
     const { amount, category, date, description, type } = req.body;
+
     if (!amount || !category || !date || !description || !type) {
       return res.status(400).json({ success: false, message: 'Validation failed: Missing required fields.' });
     }
 
-    // Only create if valid
-    const transaction = await Transaction.create(req.body);
+    const transactionData = {
+      ...req.body,
+      user: req.user.id
+    };
+
+    const transaction = await Transaction.create(transactionData);
 
     return res.status(200).json({ success: true, transaction });
   } catch (error) {
     return res.status(500).json({ success: false, message: error.message });
   }
 });
+
 
 // @desc    Bulk create transactions from transaction history
 // @route   POST /api/receipts/bulk-create-transactions

@@ -9,18 +9,31 @@ import { Textarea } from '@/components/ui/textarea';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
-import { 
-  Upload, 
-  FileImage, 
-  FileText, 
-  Check, 
-  X, 
+import {
+  Upload,
+  FileImage,
+  FileText,
+  Check,
+  X,
   Eye,
-  Download,
   Trash2,
   Plus
 } from 'lucide-react';
 import LoadingSpinner from '../components/LoadingSpinner';
+
+// ✅ Add this helper at the top of your file
+const mapToValidCategory = (category) => {
+  if (!category || category.trim() === '') return 'others';
+
+  const lower = category.trim().toLowerCase();
+  const mapping = {
+    'other-expense': 'others',
+    'other-income': 'others',
+    'other': 'others'
+  };
+
+  return mapping[lower] || category;
+};
 
 const ReceiptsPage = () => {
   const { user } = useAuth();
@@ -35,7 +48,6 @@ const ReceiptsPage = () => {
   const fileInputRef = useRef(null);
 
   const handleFileUpload = async (files) => {
-    console.log('handleFileUpload called with:', files);
     if (!files || files.length === 0) return;
 
     setProcessing(true);
@@ -46,16 +58,14 @@ const ReceiptsPage = () => {
     try {
       const file = files[0];
       const fileType = file.type;
-      
-      // Validate file type
+
       const isImage = fileType.startsWith('image/');
       const isPDF = fileType === 'application/pdf';
-      
+
       if (!isImage && !isPDF) {
         throw new Error('Please upload an image (JPG, PNG, etc.) or PDF file');
       }
 
-      // Simulate upload progress
       const progressInterval = setInterval(() => {
         setUploadProgress(prev => {
           if (prev >= 90) {
@@ -72,12 +82,10 @@ const ReceiptsPage = () => {
       } else {
         response = await apiClient.uploadReceiptPDF(file);
       }
-      console.log('Extracted response:', response);
 
       clearInterval(progressInterval);
       setUploadProgress(100);
 
-      // Add to uploaded files list
       const newFile = {
         id: Date.now(),
         name: file.name,
@@ -89,8 +97,6 @@ const ReceiptsPage = () => {
 
       setUploadedFiles(prev => [newFile, ...prev]);
       setExtractedData(response.data);
-      console.log('Extracted data set:', response.data);
-
     } catch (error) {
       console.error('Upload failed:', error);
       setError(error.message || 'Failed to process receipt');
@@ -102,9 +108,7 @@ const ReceiptsPage = () => {
 
   const handleDrop = (e) => {
     e.preventDefault();
-    console.log('Drop event:', e);
     const files = Array.from(e.dataTransfer.files);
-    console.log('Files dropped:', files);
     handleFileUpload(files);
   };
 
@@ -133,6 +137,7 @@ const ReceiptsPage = () => {
       await apiClient.createTransactionFromReceipt(receiptData);
       setSuccess('Transaction created successfully from receipt data!');
     } catch (error) {
+      console.error(error);
       setError(error.message || 'Failed to create transaction');
     } finally {
       setProcessing(false);
@@ -141,7 +146,10 @@ const ReceiptsPage = () => {
 
   const removeFile = (fileId) => {
     setUploadedFiles(prev => prev.filter(file => file.id !== fileId));
-    if (extractedData && uploadedFiles.find(f => f.id === fileId)?.extractedData === extractedData) {
+    if (
+      extractedData &&
+      uploadedFiles.find(f => f.id === fileId)?.extractedData === extractedData
+    ) {
       setExtractedData(null);
     }
   };
@@ -158,7 +166,6 @@ const ReceiptsPage = () => {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
       <div>
         <h1 className="text-3xl font-bold">Receipts</h1>
         <p className="text-muted-foreground">
@@ -166,7 +173,6 @@ const ReceiptsPage = () => {
         </p>
       </div>
 
-      {/* Upload Area */}
       <Card>
         <CardHeader>
           <CardTitle>Upload Receipt</CardTitle>
@@ -203,7 +209,7 @@ const ReceiptsPage = () => {
               </div>
             </div>
           </div>
-          
+
           <input
             ref={fileInputRef}
             type="file"
@@ -224,7 +230,6 @@ const ReceiptsPage = () => {
         </CardContent>
       </Card>
 
-      {/* Alerts */}
       {error && (
         <Alert variant="destructive">
           <X className="h-4 w-4" />
@@ -239,7 +244,6 @@ const ReceiptsPage = () => {
         </Alert>
       )}
 
-      {/* Extracted Data */}
       {extractedData && (
         <Card>
           <CardHeader>
@@ -250,84 +254,90 @@ const ReceiptsPage = () => {
           </CardHeader>
           <CardContent className="space-y-4">
             {isEditing ? (
-  <form
-    onSubmit={e => {
-      e.preventDefault();
-      setExtractedData(editData);
-      setIsEditing(false);
-    }}
-    className="space-y-4"
-  >
-    <div className="grid gap-4 md:grid-cols-2">
-      <div>
-        <Label>Merchant/Store</Label>
-        <Input
-          value={editData.merchant || editData.merchantName || ''}
-          onChange={e =>
-            setEditData(data => ({
-              ...data,
-              merchant: e.target.value,
-              merchantName: e.target.value,
-            }))
-          }
-        />
-      </div>
-      <div>
-        <Label>Total Amount</Label>
-        <Input
-          type="number"
-          value={editData.totalAmount || ''}
-          onChange={e =>
-            setEditData(data => ({
-              ...data,
-              totalAmount: parseFloat(e.target.value) || 0,
-            }))
-          }
-        />
-      </div>
-      <div>
-        <Label>Date</Label>
-        <Input
-          type="date"
-          value={
-            editData.date
-              ? new Date(editData.date).toISOString().split('T')[0]
-              : ''
-          }
-          onChange={e =>
-            setEditData(data => ({
-              ...data,
-              date: e.target.value,
-            }))
-          }
-        />
-      </div>
-      <div>
-        <Label>Category</Label>
-        <Input
-          value={editData.suggestedCategory || ''}
-          onChange={e =>
-            setEditData(data => ({
-              ...data,
-              suggestedCategory: e.target.value,
-            }))
-          }
-        />
-      </div>
-    </div>
-    <div className="flex space-x-2">
-      <Button type="submit">Save</Button>
-      <Button variant="outline" onClick={() => setIsEditing(false)}>
-        Cancel
-      </Button>
-    </div>
-  </form>
-) : (
+              <form
+                onSubmit={e => {
+                  e.preventDefault();
+                  setExtractedData({
+                    ...editData,
+                    suggestedCategory: mapToValidCategory(editData.suggestedCategory)
+                  });
+                  setIsEditing(false);
+                }}
+                className="space-y-4"
+              >
+                <div className="grid gap-4 md:grid-cols-2">
+                  <div>
+                    <Label>Merchant/Store</Label>
+                    <Input
+                      value={editData.merchant || editData.merchantName || ''}
+                      onChange={e =>
+                        setEditData(data => ({
+                          ...data,
+                          merchant: e.target.value,
+                          merchantName: e.target.value
+                        }))
+                      }
+                    />
+                  </div>
+                  <div>
+                    <Label>Total Amount</Label>
+                    <Input
+                      type="number"
+                      value={editData.totalAmount || ''}
+                      onChange={e =>
+                        setEditData(data => ({
+                          ...data,
+                          totalAmount: parseFloat(e.target.value) || 0
+                        }))
+                      }
+                    />
+                  </div>
+                  <div>
+                    <Label>Date</Label>
+                    <Input
+                      type="date"
+                      value={
+                        editData.date
+                          ? new Date(editData.date).toISOString().split('T')[0]
+                          : ''
+                      }
+                      onChange={e =>
+                        setEditData(data => ({
+                          ...data,
+                          date: e.target.value
+                        }))
+                      }
+                    />
+                  </div>
+                  <div>
+                    <Label>Category</Label>
+                    <Input
+                      value={editData.suggestedCategory || ''}
+                      onChange={e =>
+                        setEditData(data => ({
+                          ...data,
+                          suggestedCategory: e.target.value
+                        }))
+                      }
+                    />
+                  </div>
+                </div>
+                <div className="flex space-x-2">
+                  <Button type="submit">Save</Button>
+                  <Button variant="outline" onClick={() => setIsEditing(false)}>
+                    Cancel
+                  </Button>
+                </div>
+              </form>
+            ) : (
               <div className="grid gap-4 md:grid-cols-2">
                 <div>
                   <Label>Merchant/Store</Label>
                   <p className="text-lg font-medium">
-                    {extractedData.merchant || extractedData.merchantName || extractedData.suggestedTransaction?.description || 'Not detected'}
+                    {extractedData.merchant ||
+                      extractedData.merchantName ||
+                      extractedData.suggestedTransaction?.description ||
+                      'Not detected'}
                   </p>
                 </div>
                 <div>
@@ -351,9 +361,11 @@ const ReceiptsPage = () => {
                 <div>
                   <Label>Category</Label>
                   <Badge variant="outline">
-                    {extractedData.suggestedCategory ||
-                     extractedData.suggestedTransaction?.category ||
-                     'other'}
+                    {mapToValidCategory(
+                      extractedData.suggestedCategory ||
+                      extractedData.suggestedTransaction?.category ||
+                      'others'
+                    )}
                   </Badge>
                 </div>
               </div>
@@ -385,35 +397,47 @@ const ReceiptsPage = () => {
             )}
 
             <div className="flex space-x-2">
-              <Button 
-                onClick={() => createTransactionFromReceipt({
-                  amount: getTotalAmount(extractedData),
-                  category:
-                    extractedData.suggestedCategory && extractedData.suggestedCategory.trim() !== ''
-                      ? extractedData.suggestedCategory
-                      : extractedData.suggestedTransaction?.category && extractedData.suggestedTransaction.category.trim() !== ''
-                        ? extractedData.suggestedTransaction.category
-                        : 'other',
-                  date: extractedData.date || extractedData.suggestedTransaction?.date || new Date().toISOString(),
-                  description: extractedData.merchant || extractedData.merchantName || extractedData.suggestedTransaction?.description || 'Receipt',
-                  type: extractedData.suggestedTransaction?.type || 'expense',
-                  user: user?._id,
-                })}
+              <Button
+                onClick={() =>
+                  createTransactionFromReceipt({
+                    amount: getTotalAmount(extractedData),
+                    category: mapToValidCategory(
+                      extractedData.suggestedCategory && extractedData.suggestedCategory.trim() !== ''
+                        ? extractedData.suggestedCategory
+                        : extractedData.suggestedTransaction?.category && extractedData.suggestedTransaction.category.trim() !== ''
+                          ? extractedData.suggestedTransaction.category
+                          : 'others'
+                    ),
+                    date:
+                      extractedData.date ||
+                      extractedData.suggestedTransaction?.date ||
+                      new Date().toISOString(),
+                    description:
+                      extractedData.merchant ||
+                      extractedData.merchantName ||
+                      extractedData.suggestedTransaction?.description ||
+                      'Receipt',
+                    type:
+                      extractedData.suggestedTransaction?.type || 'expense',
+                    user: user?._id
+                  })
+                }
                 disabled={processing || getTotalAmount(extractedData) === 0}
               >
                 {processing ? (
                   <LoadingSpinner size="sm" className="mr-2" />
                 ) : (
-                  <Plus className="h-4 w-4 mr-2" />
+                  <>
+                    <Plus className="h-4 w-4 mr-2" />
+                    Create Transaction
+                  </>
                 )}
-                Create Transaction
               </Button>
             </div>
           </CardContent>
         </Card>
       )}
 
-      {/* Uploaded Files History */}
       {uploadedFiles.length > 0 && (
         <Card>
           <CardHeader>
@@ -470,7 +494,6 @@ const ReceiptsPage = () => {
         </Card>
       )}
 
-      {/* Tips */}
       <Card>
         <CardHeader>
           <CardTitle>Tips for Better Results</CardTitle>
@@ -490,4 +513,3 @@ const ReceiptsPage = () => {
 };
 
 export default ReceiptsPage;
-
